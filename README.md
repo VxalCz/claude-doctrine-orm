@@ -9,7 +9,7 @@ Plugin for [Claude Code](https://claude.com/product/claude-code) – the AI-powe
 First, add the Doctrine marketplace to Claude Code:
 
 ```
-/plugin marketplace add doctrine/claude-code
+/plugin marketplace add VxalCz/claude-doctrine-orm
 ```
 
 Then install the plugin:
@@ -59,15 +59,6 @@ Skills are automatically activated based on conversation context. For example:
 - Ask about "entity relationships" → activates `doctrine-relationships`
 - Ask about "database migrations" → activates `doctrine-migrations`
 - Etc..
-
-## LLM Context Files
-
-This project includes `llms.txt` context files for LLM consumption:
-
-- [`llms.txt`](llms.txt) - Structured overview of all skills, commands, and documentation
-- [`llms-ctx.txt`](llms-ctx.txt) - Full context with all skill contents included
-
-These files follow the [llms.txt standard](https://llmstxt.org/) for providing LLM-friendly documentation.
 
 ## LLM Context
 

@@ -1,0 +1,16 @@
+{
+	"$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+	"name": "doctrine",
+	"description": "Claude Code plugin for Doctrine ORM - entity patterns, DQL queries, migrations, and automatic validation",
+	"owner": {
+		"name": "VxalCz"
+	},
+	"plugins": [
+		{
+			"name": "doctrine",
+			"source": "./plugins/doctrine",
+			"category": "development",
+			"homepage": "https://github.com/VxalCz/claude-doctrine-orm"
+		}
+	]
+}
