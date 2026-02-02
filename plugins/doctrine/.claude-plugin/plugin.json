@@ -6,6 +6,5 @@
 	"license": "MIT",
 	"keywords": ["doctrine", "orm", "dbal", "database", "entity", "dql", "querybuilder", "migrations"],
 	"skills": "./skills/",
-	"hooks": "./hooks/",
 	"commands": "./commands/"
 }
