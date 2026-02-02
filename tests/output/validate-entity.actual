@@ -1,0 +1,1 @@
+PHP Warning:  preg_match(): Compilation failed: missing terminating ] for character class at offset 27 in C:\val\claudeDO\plugins\doctrine\hooks\validate-entity.php on line 71
