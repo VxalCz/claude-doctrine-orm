@@ -4,10 +4,32 @@ Plugin for [Claude Code](https://claude.com/product/claude-code) – the AI-powe
 
 ## Installation
 
+### From Marketplace (Recommended)
+
+First, add the Doctrine marketplace to Claude Code:
+
+```
+/plugin marketplace add doctrine/claude-code
+```
+
+Then install the plugin:
+
+```
+/plugin install doctrine@doctrine
+```
+
+### Local Installation
+
 Load the plugin locally in your project:
 
 ```bash
 claude code --plugin /path/to/claude-doctrine-orm/plugins/doctrine
+```
+
+Or from the current directory:
+
+```bash
+claude code --plugin ./plugins/doctrine
 ```
 
 ## Skills
