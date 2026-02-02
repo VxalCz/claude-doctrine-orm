@@ -7,6 +7,18 @@ require __DIR__ . '/../vendor/autoload.php';
 Tester\Environment::setup();
 Tester\Environment::setupFunctions();
 
+// Ensure fixtures directory exists
+$fixturesDir = __DIR__ . '/fixtures';
+if (!is_dir($fixturesDir)) {
+	mkdir($fixturesDir, 0777, true);
+}
+
+// Ensure fixtures directory exists
+$fixturesDir = __DIR__ . '/fixtures';
+if (!is_dir($fixturesDir)) {
+	mkdir($fixturesDir, 0777, true);
+}
+
 
 function runHookScript(string $scriptPath, array $input): array
 {
