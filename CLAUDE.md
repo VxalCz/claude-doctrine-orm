@@ -118,6 +118,11 @@ The `description` is critical - Claude uses it to decide when to include the ski
 - Write content in English
 - Follow the patterns in PLUGIN_DEVELOPMENT_GUIDE.md
 
+## Git Conventions
+
+- **DO NOT** include `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>` in commit messages
+- Write clear, concise commit messages that describe the changes
+
 ## Important Files
 
 - `PLUGIN_DEVELOPMENT_GUIDE.md` - Comprehensive plugin development documentation
