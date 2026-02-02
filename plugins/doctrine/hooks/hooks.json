@@ -1,0 +1,16 @@
+{
+	"description": "Validation for Doctrine entity files",
+	"hooks": {
+		"PostToolUse": [
+			{
+				"matcher": "Edit|Write",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "php ${CLAUDE_PLUGIN_ROOT}/hooks/validate-entity.php"
+					}
+				]
+			}
+		]
+	}
+}

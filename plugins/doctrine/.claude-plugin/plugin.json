@@ -1,0 +1,11 @@
+{
+	"name": "doctrine",
+	"version": "1.0.0",
+	"description": "Doctrine ORM and DBAL conventions, entity patterns, mapping, and database operations",
+	"author": {"name": "Developer"},
+	"license": "MIT",
+	"keywords": ["doctrine", "orm", "dbal", "database", "entity", "dql", "querybuilder", "migrations"],
+	"skills": "./skills/",
+	"hooks": "./hooks/",
+	"commands": "./commands/"
+}

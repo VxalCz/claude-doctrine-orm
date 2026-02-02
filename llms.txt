@@ -1,0 +1,52 @@
+# Claude Code Doctrine ORM Plugin
+
+> A Claude Code plugin providing deep knowledge of Doctrine ORM, including entity definitions, DQL queries, associations, lifecycle callbacks, migrations, and automatic entity validation with hooks.
+
+This plugin extends Claude Code with contextual documentation (skills) and automatic file validation (hooks) for developers working with Doctrine ORM.
+
+Key features:
+- **7 contextual skills** covering entities, queries, relationships, mapping, lifecycle, migrations, and tools
+- **Automatic entity validation** via PostToolUse hooks - validates PHP syntax, mapping errors, and type compatibility
+- **3 slash commands** for generating entities, creating migrations, and validating schema
+- Uses PHP 8 attributes for modern, type-safe entity mapping
+
+## Skills
+
+Core documentation files for contextual activation:
+
+- [doctrine-orm](plugins/doctrine/skills/doctrine-orm/SKILL.md): Entity definitions, column types, basic ORM patterns, and repository structure
+- [doctrine-query](plugins/doctrine/skills/doctrine-query/SKILL.md): DQL, QueryBuilder, custom repositories, hydration modes, and pagination
+- [doctrine-relationships](plugins/doctrine/skills/doctrine-relationships/SKILL.md): OneToOne, OneToMany, ManyToMany associations, mappedBy/inversedBy, join columns
+- [doctrine-mapping](plugins/doctrine/skills/doctrine-mapping/SKILL.md): Advanced mapping configurations, inheritance strategies, embeddables
+- [doctrine-lifecycle](plugins/doctrine/skills/doctrine-lifecycle/SKILL.md): Lifecycle callbacks, entity listeners, PrePersist, PostUpdate events
+- [doctrine-migrations](plugins/doctrine/skills/doctrine-migrations/SKILL.md): Database migrations, versioning, rollback strategies
+- [doctrine-tools](plugins/doctrine/skills/doctrine-tools/SKILL.md): Schema tool, validators, debugging and profiling
+
+## Commands
+
+Slash commands available via `/command-name`:
+
+- [generate-entity](plugins/doctrine/commands/generate-entity.md): Interactive entity generator with fields, mapping, and optional repository
+- [make-migration](plugins/doctrine/commands/make-migration.md): Generate Doctrine migration from entity changes
+- [validate-schema](plugins/doctrine/commands/validate-schema.md): Validate entity mappings and database consistency
+
+## Hooks
+
+PostToolUse validation scripts:
+
+- [validate-entity.php](plugins/doctrine/hooks/validate-entity.php): Validates PHP syntax, missing primary keys, invalid column types, association mapping errors
+
+## Development
+
+Project structure and development guides:
+
+- [CLAUDE.md](CLAUDE.md): Project overview, testing plugins locally, hook implementation details
+- [PLUGIN_DEVELOPMENT_GUIDE.md](PLUGIN_DEVELOPMENT_GUIDE.md): Comprehensive plugin development documentation
+
+## Optional
+
+Extended documentation:
+
+- [types.md](plugins/doctrine/skills/doctrine-orm/types.md): Complete reference of Doctrine column types (integer, string, datetime_immutable, json, uuid, etc.)
+- [dql.md](plugins/doctrine/skills/doctrine-query/dql.md): DQL syntax, joins, aggregations, subqueries
+- [repositories.md](plugins/doctrine/skills/doctrine-query/repositories.md): Custom repository patterns, ServiceEntityRepository extension

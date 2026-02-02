@@ -1,0 +1,2186 @@
+# Claude Code Doctrine ORM Plugin
+
+> A Claude Code plugin providing deep knowledge of Doctrine ORM, including entity definitions, DQL queries, associations, lifecycle callbacks, migrations, and automatic entity validation with hooks.
+
+This plugin extends Claude Code with contextual documentation (skills) and automatic file validation (hooks) for developers working with Doctrine ORM.
+
+Key features:
+- **7 contextual skills** covering entities, queries, relationships, mapping, lifecycle, migrations, and tools
+- **Automatic entity validation** via PostToolUse hooks - validates PHP syntax, mapping errors, and type compatibility
+- **3 slash commands** for generating entities, creating migrations, and validating schema
+- Uses PHP 8 attributes for modern, type-safe entity mapping
+
+## Skills
+
+Core documentation files for contextual activation:
+
+- [doctrine-orm](plugins/doctrine/skills/doctrine-orm/SKILL.md): Entity definitions, column types, basic ORM patterns, and repository structure
+- [doctrine-query](plugins/doctrine/skills/doctrine-query/SKILL.md): DQL, QueryBuilder, custom repositories, hydration modes, and pagination
+- [doctrine-relationships](plugins/doctrine/skills/doctrine-relationships/SKILL.md): OneToOne, OneToMany, ManyToMany associations, mappedBy/inversedBy, join columns
+- [doctrine-mapping](plugins/doctrine/skills/doctrine-mapping/SKILL.md): Advanced mapping configurations, inheritance strategies, embeddables
+- [doctrine-lifecycle](plugins/doctrine/skills/doctrine-lifecycle/SKILL.md): Lifecycle callbacks, entity listeners, PrePersist, PostUpdate events
+- [doctrine-migrations](plugins/doctrine/skills/doctrine-migrations/SKILL.md): Database migrations, versioning, rollback strategies
+- [doctrine-tools](plugins/doctrine/skills/doctrine-tools/SKILL.md): Schema tool, validators, debugging and profiling
+
+## Commands
+
+Slash commands available via `/command-name`:
+
+- [generate-entity](plugins/doctrine/commands/generate-entity.md): Interactive entity generator with fields, mapping, and optional repository
+- [make-migration](plugins/doctrine/commands/make-migration.md): Generate Doctrine migration from entity changes
+- [validate-schema](plugins/doctrine/commands/validate-schema.md): Validate entity mappings and database consistency
+
+## Hooks
+
+PostToolUse validation scripts:
+
+- [validate-entity.php](plugins/doctrine/hooks/validate-entity.php): Validates PHP syntax, missing primary keys, invalid column types, association mapping errors
+
+## Development
+
+Project structure and development guides:
+
+- [CLAUDE.md](CLAUDE.md): Project overview, testing plugins locally, hook implementation details
+- [PLUGIN_DEVELOPMENT_GUIDE.md](PLUGIN_DEVELOPMENT_GUIDE.md): Comprehensive plugin development documentation
+
+## Optional
+
+Extended documentation:
+
+- [types.md](plugins/doctrine/skills/doctrine-orm/types.md): Complete reference of Doctrine column types (integer, string, datetime_immutable, json, uuid, etc.)
+- [dql.md](plugins/doctrine/skills/doctrine-query/dql.md): DQL syntax, joins, aggregations, subqueries
+- [repositories.md](plugins/doctrine/skills/doctrine-query/repositories.md): Custom repository patterns, ServiceEntityRepository extension
+
+
+---
+
+# Full Context: doctrine-orm
+
+---
+name: doctrine-orm
+description: When working with Doctrine ORM entities, repositories, entity manager, persistence operations, or mapping configuration
+---
+
+## Doctrine ORM Overview
+
+Doctrine ORM (Object-Relational Mapping) maps PHP objects to database tables, allowing you to work with database records as objects.
+
+### Entity Structure
+
+An entity is a PHP class with attributes/annotations defining its database mapping:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Entity;
+
+use Doctrine\ORM\Mapping as ORM;
+
+#[ORM\Entity]
+#[ORM\Table(name: 'users')]
+class User
+{
+	#[ORM\Id]
+	#[ORM\GeneratedValue]
+	#[ORM\Column(type: 'integer')]
+	private ?int $id = null;
+
+	#[ORM\Column(type: 'string', length: 255)]
+	private string $name;
+
+	#[ORM\Column(type: 'string', length: 255, unique: true)]
+	private string $email;
+
+	#[ORM\Column(type: 'datetime_immutable')]
+	private \DateTimeImmutable $createdAt;
+
+	public function __construct(string $name, string $email)
+	{
+		$this->name = $name;
+		$this->email = $email;
+		$this->createdAt = new \DateTimeImmutable();
+	}
+
+	public function getId(): ?int
+	{
+		return $this->id;
+	}
+
+	public function getName(): string
+	{
+		return $this->name;
+	}
+
+	public function setName(string $name): void
+	{
+		$this->name = $name;
+	}
+
+	public function getEmail(): string
+	{
+		return $this->email;
+	}
+
+	public function setEmail(string $email): void
+	{
+		$this->email = $email;
+	}
+
+	public function getCreatedAt(): \DateTimeImmutable
+	{
+		return $this->createdAt;
+	}
+}
+```
+
+### Repository Pattern
+
+Repositories encapsulate entity queries:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Repository;
+
+use App\Entity\User;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+
+/**
+ * @extends ServiceEntityRepository<User>
+ */
+class UserRepository extends ServiceEntityRepository
+{
+	public function __construct(ManagerRegistry $registry)
+	{
+		parent::__construct($registry, User::class);
+	}
+
+	public function findByEmail(string $email): ?User
+	{
+		return $this->createQueryBuilder('u')
+			->andWhere('u.email = :email')
+			->setParameter('email', $email)
+			->getQuery()
+			->getOneOrNullResult();
+	}
+
+	/**
+	 * @return User[]
+	 */
+	public function findActiveUsers(): array
+	{
+		return $this->createQueryBuilder('u')
+			->andWhere('u.isActive = :active')
+			->setParameter('active', true)
+			->orderBy('u.name', 'ASC')
+			->getQuery()
+			->getResult();
+	}
+}
+```
+
+### Entity Manager Operations
+
+```php
+// Persist (insert)
+$user = new User('John', 'john@example.com');
+$entityManager->persist($user);
+$entityManager->flush();
+
+// Update
+$user = $userRepository->find(1);
+$user->setName('Jane');
+$entityManager->flush(); // No persist needed for updates
+
+// Remove
+$entityManager->remove($user);
+$entityManager->flush();
+
+// Refresh from database
+$entityManager->refresh($user);
+
+// Detach from entity manager
+$entityManager->detach($user);
+
+// Clear entity manager (detaches all entities)
+$entityManager->clear();
+```
+
+### Common Column Types
+
+| Type | PHP Type | Description |
+|------|----------|-------------|
+| `integer` | `int` | Whole numbers |
+| `string` | `string` | Variable length string (use `length` parameter) |
+| `text` | `string` | Unlimited length text |
+| `boolean` | `bool` | True/false |
+| `datetime` | `DateTime` | Date and time |
+| `datetime_immutable` | `DateTimeImmutable` | Immutable date and time (recommended) |
+| `date` | `DateTime` | Date only |
+| `time` | `DateTime` | Time only |
+| `decimal` | `string` | Precise decimal (use `precision` and `scale`) |
+| `float` | `float` | Floating point |
+| `json` | `array` | JSON encoded array/object |
+| `uuid` | `UuidInterface` | UUID (requires ramsey/uuid) |
+| `enum` | `BackedEnum` | PHP 8.1 enum |
+
+### Column Constraints
+
+```php
+#[ORM\Column(type: 'string', length: 255, unique: true)]
+private string $email;
+
+#[ORM\Column(type: 'string', length: 255, nullable: true)]
+private ?string $middleName = null;
+
+#[ORM\Column(type: 'decimal', precision: 10, scale: 2)]
+private string $price; // Decimals are strings for precision
+
+#[ORM\Column(type: 'string', length: 255, options: ['default' => 'active'])]
+private string $status = 'active';
+```
+
+### Best Practices
+
+1. **Use PHP 8 Attributes** - Modern, type-safe mapping (PHP 8+)
+2. **Immutable DateTimes** - Prefer `datetime_immutable` over `datetime`
+3. **Constructor Initialization** - Initialize collections and required fields in constructor
+4. **Nullable Types** - Mark nullable properties with `?` type and default to `null`
+5. **Private Properties** - Keep properties private, expose via getters/setters
+6. **Return Types** - Always add return type hints
+7. **No Setter for ID** - Primary key should never have a setter
+
+
+---
+
+# Full Context: doctrine-query
+
+---
+name: doctrine-query
+description: When working with DQL queries, QueryBuilder, custom repositories, or complex database queries in Doctrine
+---
+
+## Doctrine Querying
+
+Doctrine provides multiple ways to query data: Repository methods, QueryBuilder, and DQL.
+
+### Repository Methods
+
+```php
+// Find by primary key
+$user = $userRepository->find(1);
+
+// Find all
+$users = $userRepository->findAll();
+
+// Find by criteria
+$users = $userRepository->findBy(['status' => 'active']);
+
+// Find one by criteria
+$user = $userRepository->findOneBy(['email' => 'john@example.com']);
+
+// Find with ordering and limit
+$users = $userRepository->findBy(
+    ['status' => 'active'],
+    ['createdAt' => 'DESC'],
+    10,  // Limit
+    0    // Offset
+);
+```
+
+### QueryBuilder
+
+Fluent API for building queries:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Repository;
+
+use App\Entity\User;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\ORM\QueryBuilder;
+
+/**
+ * @extends ServiceEntityRepository<User>
+ */
+class UserRepository extends ServiceEntityRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, User::class);
+    }
+
+    public function findActiveUsersQueryBuilder(): QueryBuilder
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.status = :status')
+            ->setParameter('status', 'active')
+            ->orderBy('u.createdAt', 'DESC');
+    }
+
+    public function findBySearchTerm(string $term): array
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.name LIKE :term OR u.email LIKE :term')
+            ->setParameter('term', '%' . $term . '%')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findUsersWithOrders(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->innerJoin('u.orders', 'o')
+            ->andWhere('o.status = :status')
+            ->setParameter('status', 'completed')
+            ->addSelect('o') // Eager load orders
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function getUserStatistics(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->select('u.status, COUNT(u.id) as count')
+            ->groupBy('u.status')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findRecentUsers(\DateTimeImmutable $since): array
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.createdAt >= :since')
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getResult();
+    }
+}
+```
+
+### DQL (Doctrine Query Language)
+
+SQL-like language for querying objects:
+
+```php
+// Simple DQL
+$dql = "SELECT u FROM App\Entity\User u WHERE u.status = :status";
+$query = $entityManager->createQuery($dql);
+$query->setParameter('status', 'active');
+$users = $query->getResult();
+
+// DQL with joins
+$dql = "SELECT u, o FROM App\Entity\User u
+        JOIN u.orders o
+        WHERE o.total > :minTotal
+        ORDER BY o.createdAt DESC";
+$query = $entityManager->createQuery($dql);
+$query->setParameter('minTotal', 100);
+$results = $query->getResult();
+
+// Named query in repository
+public function findHighValueCustomers(float $minTotal): array
+{
+    $dql = "SELECT u, SUM(o.total) as totalSpent
+            FROM App\Entity\User u
+            JOIN u.orders o
+            WHERE o.status = 'completed'
+            GROUP BY u.id
+            HAVING totalSpent > :minTotal";
+
+    return $this->getEntityManager()
+        ->createQuery($dql)
+        ->setParameter('minTotal', $minTotal)
+        ->getResult();
+}
+```
+
+### Native SQL
+
+For complex queries that DQL can't handle:
+
+```php
+use Doctrine\ORM\Query\ResultSetMapping;
+
+$rsm = new ResultSetMapping();
+$rsm->addEntityResult(User::class, 'u');
+$rsm->addFieldResult('u', 'id', 'id');
+$rsm->addFieldResult('u', 'name', 'name');
+$rsm->addFieldResult('u', 'email', 'email');
+
+$sql = 'SELECT u.*, COUNT(o.id) as order_count
+        FROM users u
+        LEFT JOIN orders o ON u.id = o.user_id
+        WHERE u.status = ?
+        GROUP BY u.id';
+
+$query = $entityManager->createNativeQuery($sql, $rsm);
+$query->setParameter(1, 'active');
+
+$users = $query->getResult();
+```
+
+### Hydration Modes
+
+```php
+// Default - returns entity objects
+$users = $query->getResult();
+
+// Array hydration - returns arrays (faster, no entity tracking)
+$users = $query->getResult(Query::HYDRATE_ARRAY);
+
+// Scalar hydration - single values
+$count = $query->getSingleScalarResult();
+
+// Get single result (throws if none or multiple)
+$user = $query->getSingleResult();
+
+// Get one or null
+$user = $query->getOneOrNullResult();
+
+// Iterate large results (memory efficient)
+$iterable = $query->toIterable();
+foreach ($iterable as $user) {
+    // Process user
+    $entityManager->detach($user); // Free memory
+}
+```
+
+### Query Hints
+
+```php
+// Read-only query (improves performance)
+$query = $repository->createQueryBuilder('u')
+    ->setHint(Query::HINT_READ_ONLY, true)
+    ->getQuery();
+
+// Force partial load
+$query->setHint(Query::HINT_FORCE_PARTIAL_LOAD, true);
+
+// Custom tree walker for complex SQL generation
+$query->setHint(Query::HINT_CUSTOM_TREE_WALKERS, [CustomTreeWalker::class]);
+```
+
+### Paging Results
+
+```php
+use Doctrine\ORM\Tools\Pagination\Paginator;
+
+public function findPaginated(int $page = 1, int $perPage = 20): Paginator
+{
+    $query = $this->createQueryBuilder('u')
+        ->orderBy('u.createdAt', 'DESC')
+        ->setFirstResult(($page - 1) * $perPage)
+        ->setMaxResults($perPage)
+        ->getQuery();
+
+    return new Paginator($query);
+}
+
+// Usage
+$paginator = $repository->findPaginated(1, 20);
+$totalItems = count($paginator);
+$users = iterator_to_array($paginator);
+```
+
+### Best Practices
+
+1. **Use Repository Methods** - Encapsulate queries in repository classes
+2. **QueryBuilder over DQL** - More maintainable, IDE-friendly
+3. **Parameter Binding** - Always use parameters to prevent SQL injection
+4. **Add Select for Joins** - Eager load with `addSelect()` to avoid N+1
+5. **Pagination** - Use `Paginator` for large result sets
+6. **Hydration Mode** - Use array hydration for read-only data
+7. **Iterate Large Results** - Use `toIterable()` for memory efficiency
+
+
+---
+
+# Full Context: doctrine-relationships
+
+---
+name: doctrine-relationships
+description: When working with Doctrine entity relationships, associations, joins, OneToOne, OneToMany, ManyToOne, ManyToMany mappings
+---
+
+## Doctrine Entity Relationships
+
+Doctrine supports all standard relationship types: One-to-One, One-to-Many, Many-to-One, and Many-to-Many.
+
+### Many-to-One (Single Direction)
+
+Most common relationship - many entities belong to one parent:
+
+```php
+#[ORM\Entity]
+class Article
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\Column(type: 'string', length: 255)]
+    private string $title;
+
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'articles')]
+    #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: false)]
+    private User $author;
+
+    public function __construct(string $title, User $author)
+    {
+        $this->title = $title;
+        $this->author = $author;
+    }
+
+    public function getAuthor(): User
+    {
+        return $this->author;
+    }
+}
+
+#[ORM\Entity]
+class User
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToMany(targetEntity: Article::class, mappedBy: 'author')]
+    private Collection $articles;
+
+    public function __construct()
+    {
+        $this->articles = new ArrayCollection();
+    }
+
+    /**
+     * @return Collection<int, Article>
+     */
+    public function getArticles(): Collection
+    {
+        return $this->articles;
+    }
+
+    public function addArticle(Article $article): void
+    {
+        if (!$this->articles->contains($article)) {
+            $this->articles->add($article);
+            $article->setAuthor($this);
+        }
+    }
+
+    public function removeArticle(Article $article): void
+    {
+        if ($this->articles->removeElement($article)) {
+            if ($article->getAuthor() === $this) {
+                $article->setAuthor(null);
+            }
+        }
+    }
+}
+```
+
+### One-to-Many (Bidirectional)
+
+Parent entity has many children:
+
+```php
+#[ORM\Entity]
+class Order
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToMany(targetEntity: OrderItem::class, mappedBy: 'order', orphanRemoval: true)]
+    private Collection $items;
+
+    public function __construct()
+    {
+        $this->items = new ArrayCollection();
+    }
+
+    /**
+     * @return Collection<int, OrderItem>
+     */
+    public function getItems(): Collection
+    {
+        return $this->items;
+    }
+
+    public function addItem(OrderItem $item): void
+    {
+        if (!$this->items->contains($item)) {
+            $this->items->add($item);
+            $item->setOrder($this);
+        }
+    }
+
+    public function removeItem(OrderItem $item): void
+    {
+        if ($this->items->removeElement($item)) {
+            if ($item->getOrder() === $this) {
+                $item->setOrder(null);
+            }
+        }
+    }
+}
+
+#[ORM\Entity]
+class OrderItem
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\ManyToOne(targetEntity: Order::class, inversedBy: 'items')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Order $order = null;
+
+    #[ORM\Column(type: 'string', length: 255)]
+    private string $productName;
+
+    #[ORM\Column(type: 'integer')]
+    private int $quantity;
+
+    public function setOrder(?Order $order): void
+    {
+        $this->order = $order;
+    }
+
+    public function getOrder(): ?Order
+    {
+        return $this->order;
+    }
+}
+```
+
+### Many-to-Many
+
+Many entities related to many others:
+
+```php
+#[ORM\Entity]
+class Article
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\ManyToMany(targetEntity: Tag::class, inversedBy: 'articles')]
+    #[ORM\JoinTable(name: 'article_tags')]
+    private Collection $tags;
+
+    public function __construct()
+    {
+        $this->tags = new ArrayCollection();
+    }
+
+    public function addTag(Tag $tag): void
+    {
+        if (!$this->tags->contains($tag)) {
+            $this->tags->add($tag);
+            $tag->addArticle($this);
+        }
+    }
+
+    public function removeTag(Tag $tag): void
+    {
+        if ($this->tags->removeElement($tag)) {
+            $tag->removeArticle($this);
+        }
+    }
+
+    /**
+     * @return Collection<int, Tag>
+     */
+    public function getTags(): Collection
+    {
+        return $this->tags;
+    }
+}
+
+#[ORM\Entity]
+class Tag
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\Column(type: 'string', length: 255, unique: true)]
+    private string $name;
+
+    #[ORM\ManyToMany(targetEntity: Article::class, mappedBy: 'tags')]
+    private Collection $articles;
+
+    public function __construct(string $name)
+    {
+        $this->name = $name;
+        $this->articles = new ArrayCollection();
+    }
+
+    /**
+     * @return Collection<int, Article>
+     */
+    public function getArticles(): Collection
+    {
+        return $this->articles;
+    }
+
+    public function addArticle(Article $article): void
+    {
+        if (!$this->articles->contains($article)) {
+            $this->articles->add($article);
+        }
+    }
+
+    public function removeArticle(Article $article): void
+    {
+        $this->articles->removeElement($article);
+    }
+}
+```
+
+### Many-to-Many with Extra Fields
+
+When you need extra columns on the join table:
+
+```php
+#[ORM\Entity]
+class Student
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToMany(targetEntity: Enrollment::class, mappedBy: 'student', orphanRemoval: true)]
+    private Collection $enrollments;
+
+    public function __construct()
+    {
+        $this->enrollments = new ArrayCollection();
+    }
+}
+
+#[ORM\Entity]
+class Course
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToMany(targetEntity: Enrollment::class, mappedBy: 'course', orphanRemoval: true)]
+    private Collection $enrollments;
+
+    public function __construct()
+    {
+        $this->enrollments = new ArrayCollection();
+    }
+}
+
+#[ORM\Entity]
+class Enrollment
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\ManyToOne(targetEntity: Student::class, inversedBy: 'enrollments')]
+    #[ORM\JoinColumn(nullable: false)]
+    private Student $student;
+
+    #[ORM\ManyToOne(targetEntity: Course::class, inversedBy: 'enrollments')]
+    #[ORM\JoinColumn(nullable: false)]
+    private Course $course;
+
+    #[ORM\Column(type: 'datetime_immutable')]
+    private \DateTimeImmutable $enrolledAt;
+
+    #[ORM\Column(type: 'string', length: 20)]
+    private string $grade;
+
+    public function __construct(Student $student, Course $course)
+    {
+        $this->student = $student;
+        $this->course = $course;
+        $this->enrolledAt = new \DateTimeImmutable();
+    }
+}
+```
+
+### One-to-One
+
+Single relationship in both directions:
+
+```php
+#[ORM\Entity]
+class User
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToOne(targetEntity: Profile::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
+    private ?Profile $profile = null;
+
+    public function setProfile(Profile $profile): void
+    {
+        $this->profile = $profile;
+        $profile->setUser($this);
+    }
+}
+
+#[ORM\Entity]
+class Profile
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'profile')]
+    #[ORM\JoinColumn(nullable: false)]
+    private User $user;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $bio = null;
+
+    public function setUser(User $user): void
+    {
+        $this->user = $user;
+    }
+}
+```
+
+### Eager vs Lazy Loading
+
+```php
+// Lazy loading (default) - loads relationship on access
+#[ORM\ManyToOne(targetEntity: User::class, fetch: 'LAZY')]
+private User $author;
+
+// Eager loading - loads with parent entity
+#[ORM\ManyToOne(targetEntity: User::class, fetch: 'EAGER')]
+private User $author;
+
+// Extra lazy - count/size without loading collection
+#[ORM\OneToMany(targetEntity: Article::class, mappedBy: 'author', fetch: 'EXTRA_LAZY')]
+private Collection $articles;
+```
+
+### Cascade Operations
+
+```php
+#[ORM\OneToMany(targetEntity: OrderItem::class, mappedBy: 'order', cascade: ['persist', 'remove'])]
+private Collection $items;
+
+// Available cascades:
+// - 'persist' - Persist related entities
+// - 'remove' - Delete related entities
+// - 'merge' - Merge related entities
+// - 'detach' - Detach related entities
+// - 'refresh' - Refresh related entities
+// - 'all' - All of the above
+```
+
+### Join Column Options
+
+```php
+#[ORM\JoinColumn(
+    name: 'user_id',           // Column name in database
+    referencedColumnName: 'id', // Referenced column in target table
+    nullable: false,           // NOT NULL constraint
+    onDelete: 'CASCADE',       // Database-level cascade
+    onUpdate: 'CASCADE',       // Database-level update cascade
+    unique: true               // For OneToOne relationships
+)]
+private User $user;
+```
+
+### Best Practices
+
+1. **Bidirectional by Default** - Easier to navigate from either side
+2. **Owning Side** - Many-to-One is always the owning side
+3. **Orphan Removal** - Use for compositions (e.g., Order → OrderItem)
+4. **Lazy Loading** - Default is fine for most cases
+5. **Collection Type** - Always use `Collection` interface, initialize in constructor
+6. **Add/Remove Methods** - Implement both sides of bidirectional relationships
+7. **Database Cascades** - Use `onDelete: 'CASCADE'` for referential integrity
+8. **Avoid EAGER** - Can cause performance issues with complex graphs
+
+---
+
+# Full Context
+
+## doctrine-orm
+
+
+## Doctrine ORM Overview
+
+Doctrine ORM (Object-Relational Mapping) maps PHP objects to database tables, allowing you to work with database records as objects.
+
+### Entity Structure
+
+An entity is a PHP class with attributes/annotations defining its database mapping:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Entity;
+
+use Doctrine\ORM\Mapping as ORM;
+
+#[ORM\Entity]
+#[ORM\Table(name: 'users')]
+class User
+{
+	#[ORM\Id]
+	#[ORM\GeneratedValue]
+	#[ORM\Column(type: 'integer')]
+	private ?int $id = null;
+
+	#[ORM\Column(type: 'string', length: 255)]
+	private string $name;
+
+	#[ORM\Column(type: 'string', length: 255, unique: true)]
+	private string $email;
+
+	#[ORM\Column(type: 'datetime_immutable')]
+	private \DateTimeImmutable $createdAt;
+
+	public function __construct(string $name, string $email)
+	{
+		$this->name = $name;
+		$this->email = $email;
+		$this->createdAt = new \DateTimeImmutable();
+	}
+
+	public function getId(): ?int
+	{
+		return $this->id;
+	}
+
+	public function getName(): string
+	{
+		return $this->name;
+	}
+
+	public function setName(string $name): void
+	{
+		$this->name = $name;
+	}
+
+	public function getEmail(): string
+	{
+		return $this->email;
+	}
+
+	public function setEmail(string $email): void
+	{
+		$this->email = $email;
+	}
+
+	public function getCreatedAt(): \DateTimeImmutable
+	{
+		return $this->createdAt;
+	}
+}
+```
+
+### Repository Pattern
+
+Repositories encapsulate entity queries:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Repository;
+
+use App\Entity\User;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+
+/**
+ * @extends ServiceEntityRepository<User>
+ */
+class UserRepository extends ServiceEntityRepository
+{
+	public function __construct(ManagerRegistry $registry)
+	{
+		parent::__construct($registry, User::class);
+	}
+
+	public function findByEmail(string $email): ?User
+	{
+		return $this->createQueryBuilder('u')
+			->andWhere('u.email = :email')
+			->setParameter('email', $email)
+			->getQuery()
+			->getOneOrNullResult();
+	}
+
+	/**
+	 * @return User[]
+	 */
+	public function findActiveUsers(): array
+	{
+		return $this->createQueryBuilder('u')
+			->andWhere('u.isActive = :active')
+			->setParameter('active', true)
+			->orderBy('u.name', 'ASC')
+			->getQuery()
+			->getResult();
+	}
+}
+```
+
+### Entity Manager Operations
+
+```php
+// Persist (insert)
+$user = new User('John', 'john@example.com');
+$entityManager->persist($user);
+$entityManager->flush();
+
+// Update
+$user = $userRepository->find(1);
+$user->setName('Jane');
+$entityManager->flush(); // No persist needed for updates
+
+// Remove
+$entityManager->remove($user);
+$entityManager->flush();
+
+// Refresh from database
+$entityManager->refresh($user);
+
+// Detach from entity manager
+$entityManager->detach($user);
+
+// Clear entity manager (detaches all entities)
+$entityManager->clear();
+```
+
+### Common Column Types
+
+| Type | PHP Type | Description |
+|------|----------|-------------|
+| `integer` | `int` | Whole numbers |
+| `string` | `string` | Variable length string (use `length` parameter) |
+| `text` | `string` | Unlimited length text |
+| `boolean` | `bool` | True/false |
+| `datetime` | `DateTime` | Date and time |
+| `datetime_immutable` | `DateTimeImmutable` | Immutable date and time (recommended) |
+| `date` | `DateTime` | Date only |
+| `time` | `DateTime` | Time only |
+| `decimal` | `string` | Precise decimal (use `precision` and `scale`) |
+| `float` | `float` | Floating point |
+| `json` | `array` | JSON encoded array/object |
+| `uuid` | `UuidInterface` | UUID (requires ramsey/uuid) |
+| `enum` | `BackedEnum` | PHP 8.1 enum |
+
+### Column Constraints
+
+```php
+#[ORM\Column(type: 'string', length: 255, unique: true)]
+private string $email;
+
+#[ORM\Column(type: 'string', length: 255, nullable: true)]
+private ?string $middleName = null;
+
+#[ORM\Column(type: 'decimal', precision: 10, scale: 2)]
+private string $price; // Decimals are strings for precision
+
+#[ORM\Column(type: 'string', length: 255, options: ['default' => 'active'])]
+private string $status = 'active';
+```
+
+### Best Practices
+
+1. **Use PHP 8 Attributes** - Modern, type-safe mapping (PHP 8+)
+2. **Immutable DateTimes** - Prefer `datetime_immutable` over `datetime`
+3. **Constructor Initialization** - Initialize collections and required fields in constructor
+4. **Nullable Types** - Mark nullable properties with `?` type and default to `null`
+5. **Private Properties** - Keep properties private, expose via getters/setters
+6. **Return Types** - Always add return type hints
+7. **No Setter for ID** - Primary key should never have a setter
+
+## doctrine-query
+
+
+## Doctrine Querying
+
+Doctrine provides multiple ways to query data: Repository methods, QueryBuilder, and DQL.
+
+### Repository Methods
+
+```php
+// Find by primary key
+$user = $userRepository->find(1);
+
+// Find all
+$users = $userRepository->findAll();
+
+// Find by criteria
+$users = $userRepository->findBy(['status' => 'active']);
+
+// Find one by criteria
+$user = $userRepository->findOneBy(['email' => 'john@example.com']);
+
+// Find with ordering and limit
+$users = $userRepository->findBy(
+    ['status' => 'active'],
+    ['createdAt' => 'DESC'],
+    10,  // Limit
+    0    // Offset
+);
+```
+
+### QueryBuilder
+
+Fluent API for building queries:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Repository;
+
+use App\Entity\User;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\ORM\QueryBuilder;
+
+/**
+ * @extends ServiceEntityRepository<User>
+ */
+class UserRepository extends ServiceEntityRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, User::class);
+    }
+
+    public function findActiveUsersQueryBuilder(): QueryBuilder
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.status = :status')
+            ->setParameter('status', 'active')
+            ->orderBy('u.createdAt', 'DESC');
+    }
+
+    public function findBySearchTerm(string $term): array
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.name LIKE :term OR u.email LIKE :term')
+            ->setParameter('term', '%' . $term . '%')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findUsersWithOrders(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->innerJoin('u.orders', 'o')
+            ->andWhere('o.status = :status')
+            ->setParameter('status', 'completed')
+            ->addSelect('o') // Eager load orders
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function getUserStatistics(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->select('u.status, COUNT(u.id) as count')
+            ->groupBy('u.status')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findRecentUsers(\DateTimeImmutable $since): array
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.createdAt >= :since')
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getResult();
+    }
+}
+```
+
+### DQL (Doctrine Query Language)
+
+SQL-like language for querying objects:
+
+```php
+// Simple DQL
+$dql = "SELECT u FROM App\Entity\User u WHERE u.status = :status";
+$query = $entityManager->createQuery($dql);
+$query->setParameter('status', 'active');
+$users = $query->getResult();
+
+// DQL with joins
+$dql = "SELECT u, o FROM App\Entity\User u
+        JOIN u.orders o
+        WHERE o.total > :minTotal
+        ORDER BY o.createdAt DESC";
+$query = $entityManager->createQuery($dql);
+$query->setParameter('minTotal', 100);
+$results = $query->getResult();
+
+// Named query in repository
+public function findHighValueCustomers(float $minTotal): array
+{
+    $dql = "SELECT u, SUM(o.total) as totalSpent
+            FROM App\Entity\User u
+            JOIN u.orders o
+            WHERE o.status = 'completed'
+            GROUP BY u.id
+            HAVING totalSpent > :minTotal";
+
+    return $this->getEntityManager()
+        ->createQuery($dql)
+        ->setParameter('minTotal', $minTotal)
+        ->getResult();
+}
+```
+
+### Native SQL
+
+For complex queries that DQL can't handle:
+
+```php
+use Doctrine\ORM\Query\ResultSetMapping;
+
+$rsm = new ResultSetMapping();
+$rsm->addEntityResult(User::class, 'u');
+$rsm->addFieldResult('u', 'id', 'id');
+$rsm->addFieldResult('u', 'name', 'name');
+$rsm->addFieldResult('u', 'email', 'email');
+
+$sql = 'SELECT u.*, COUNT(o.id) as order_count
+        FROM users u
+        LEFT JOIN orders o ON u.id = o.user_id
+        WHERE u.status = ?
+        GROUP BY u.id';
+
+$query = $entityManager->createNativeQuery($sql, $rsm);
+$query->setParameter(1, 'active');
+
+$users = $query->getResult();
+```
+
+### Hydration Modes
+
+```php
+// Default - returns entity objects
+$users = $query->getResult();
+
+// Array hydration - returns arrays (faster, no entity tracking)
+$users = $query->getResult(Query::HYDRATE_ARRAY);
+
+// Scalar hydration - single values
+$count = $query->getSingleScalarResult();
+
+// Get single result (throws if none or multiple)
+$user = $query->getSingleResult();
+
+// Get one or null
+$user = $query->getOneOrNullResult();
+
+// Iterate large results (memory efficient)
+$iterable = $query->toIterable();
+foreach ($iterable as $user) {
+    // Process user
+    $entityManager->detach($user); // Free memory
+}
+```
+
+### Query Hints
+
+```php
+// Read-only query (improves performance)
+$query = $repository->createQueryBuilder('u')
+    ->setHint(Query::HINT_READ_ONLY, true)
+    ->getQuery();
+
+// Force partial load
+$query->setHint(Query::HINT_FORCE_PARTIAL_LOAD, true);
+
+// Custom tree walker for complex SQL generation
+$query->setHint(Query::HINT_CUSTOM_TREE_WALKERS, [CustomTreeWalker::class]);
+```
+
+### Paging Results
+
+```php
+use Doctrine\ORM\Tools\Pagination\Paginator;
+
+public function findPaginated(int $page = 1, int $perPage = 20): Paginator
+{
+    $query = $this->createQueryBuilder('u')
+        ->orderBy('u.createdAt', 'DESC')
+        ->setFirstResult(($page - 1) * $perPage)
+        ->setMaxResults($perPage)
+        ->getQuery();
+
+    return new Paginator($query);
+}
+
+// Usage
+$paginator = $repository->findPaginated(1, 20);
+$totalItems = count($paginator);
+$users = iterator_to_array($paginator);
+```
+
+### Best Practices
+
+1. **Use Repository Methods** - Encapsulate queries in repository classes
+2. **QueryBuilder over DQL** - More maintainable, IDE-friendly
+3. **Parameter Binding** - Always use parameters to prevent SQL injection
+4. **Add Select for Joins** - Eager load with `addSelect()` to avoid N+1
+5. **Pagination** - Use `Paginator` for large result sets
+6. **Hydration Mode** - Use array hydration for read-only data
+7. **Iterate Large Results** - Use `toIterable()` for memory efficiency
+
+## doctrine-relationships
+
+
+## Doctrine Entity Relationships
+
+Doctrine supports all standard relationship types: One-to-One, One-to-Many, Many-to-One, and Many-to-Many.
+
+### Many-to-One (Single Direction)
+
+Most common relationship - many entities belong to one parent:
+
+```php
+#[ORM\Entity]
+class Article
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\Column(type: 'string', length: 255)]
+    private string $title;
+
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'articles')]
+    #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: false)]
+    private User $author;
+
+    public function __construct(string $title, User $author)
+    {
+        $this->title = $title;
+        $this->author = $author;
+    }
+
+    public function getAuthor(): User
+    {
+        return $this->author;
+    }
+}
+
+#[ORM\Entity]
+class User
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToMany(targetEntity: Article::class, mappedBy: 'author')]
+    private Collection $articles;
+
+    public function __construct()
+    {
+        $this->articles = new ArrayCollection();
+    }
+
+    /**
+     * @return Collection<int, Article>
+     */
+    public function getArticles(): Collection
+    {
+        return $this->articles;
+    }
+
+    public function addArticle(Article $article): void
+    {
+        if (!$this->articles->contains($article)) {
+            $this->articles->add($article);
+            $article->setAuthor($this);
+        }
+    }
+
+    public function removeArticle(Article $article): void
+    {
+        if ($this->articles->removeElement($article)) {
+            if ($article->getAuthor() === $this) {
+                $article->setAuthor(null);
+            }
+        }
+    }
+}
+```
+
+### One-to-Many (Bidirectional)
+
+Parent entity has many children:
+
+```php
+#[ORM\Entity]
+class Order
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToMany(targetEntity: OrderItem::class, mappedBy: 'order', orphanRemoval: true)]
+    private Collection $items;
+
+    public function __construct()
+    {
+        $this->items = new ArrayCollection();
+    }
+
+    /**
+     * @return Collection<int, OrderItem>
+     */
+    public function getItems(): Collection
+    {
+        return $this->items;
+    }
+
+    public function addItem(OrderItem $item): void
+    {
+        if (!$this->items->contains($item)) {
+            $this->items->add($item);
+            $item->setOrder($this);
+        }
+    }
+
+    public function removeItem(OrderItem $item): void
+    {
+        if ($this->items->removeElement($item)) {
+            if ($item->getOrder() === $this) {
+                $item->setOrder(null);
+            }
+        }
+    }
+}
+
+#[ORM\Entity]
+class OrderItem
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\ManyToOne(targetEntity: Order::class, inversedBy: 'items')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Order $order = null;
+
+    #[ORM\Column(type: 'string', length: 255)]
+    private string $productName;
+
+    #[ORM\Column(type: 'integer')]
+    private int $quantity;
+
+    public function setOrder(?Order $order): void
+    {
+        $this->order = $order;
+    }
+
+    public function getOrder(): ?Order
+    {
+        return $this->order;
+    }
+}
+```
+
+### Many-to-Many
+
+Many entities related to many others:
+
+```php
+#[ORM\Entity]
+class Article
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\ManyToMany(targetEntity: Tag::class, inversedBy: 'articles')]
+    #[ORM\JoinTable(name: 'article_tags')]
+    private Collection $tags;
+
+    public function __construct()
+    {
+        $this->tags = new ArrayCollection();
+    }
+
+    public function addTag(Tag $tag): void
+    {
+        if (!$this->tags->contains($tag)) {
+            $this->tags->add($tag);
+            $tag->addArticle($this);
+        }
+    }
+
+    public function removeTag(Tag $tag): void
+    {
+        if ($this->tags->removeElement($tag)) {
+            $tag->removeArticle($this);
+        }
+    }
+
+    /**
+     * @return Collection<int, Tag>
+     */
+    public function getTags(): Collection
+    {
+        return $this->tags;
+    }
+}
+
+#[ORM\Entity]
+class Tag
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\Column(type: 'string', length: 255, unique: true)]
+    private string $name;
+
+    #[ORM\ManyToMany(targetEntity: Article::class, mappedBy: 'tags')]
+    private Collection $articles;
+
+    public function __construct(string $name)
+    {
+        $this->name = $name;
+        $this->articles = new ArrayCollection();
+    }
+
+    /**
+     * @return Collection<int, Article>
+     */
+    public function getArticles(): Collection
+    {
+        return $this->articles;
+    }
+
+    public function addArticle(Article $article): void
+    {
+        if (!$this->articles->contains($article)) {
+            $this->articles->add($article);
+        }
+    }
+
+    public function removeArticle(Article $article): void
+    {
+        $this->articles->removeElement($article);
+    }
+}
+```
+
+### Many-to-Many with Extra Fields
+
+When you need extra columns on the join table:
+
+```php
+#[ORM\Entity]
+class Student
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToMany(targetEntity: Enrollment::class, mappedBy: 'student', orphanRemoval: true)]
+    private Collection $enrollments;
+
+    public function __construct()
+    {
+        $this->enrollments = new ArrayCollection();
+    }
+}
+
+#[ORM\Entity]
+class Course
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToMany(targetEntity: Enrollment::class, mappedBy: 'course', orphanRemoval: true)]
+    private Collection $enrollments;
+
+    public function __construct()
+    {
+        $this->enrollments = new ArrayCollection();
+    }
+}
+
+#[ORM\Entity]
+class Enrollment
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\ManyToOne(targetEntity: Student::class, inversedBy: 'enrollments')]
+    #[ORM\JoinColumn(nullable: false)]
+    private Student $student;
+
+    #[ORM\ManyToOne(targetEntity: Course::class, inversedBy: 'enrollments')]
+    #[ORM\JoinColumn(nullable: false)]
+    private Course $course;
+
+    #[ORM\Column(type: 'datetime_immutable')]
+    private \DateTimeImmutable $enrolledAt;
+
+    #[ORM\Column(type: 'string', length: 20)]
+    private string $grade;
+
+    public function __construct(Student $student, Course $course)
+    {
+        $this->student = $student;
+        $this->course = $course;
+        $this->enrolledAt = new \DateTimeImmutable();
+    }
+}
+```
+
+### One-to-One
+
+Single relationship in both directions:
+
+```php
+#[ORM\Entity]
+class User
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToOne(targetEntity: Profile::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
+    private ?Profile $profile = null;
+
+    public function setProfile(Profile $profile): void
+    {
+        $this->profile = $profile;
+        $profile->setUser($this);
+    }
+}
+
+#[ORM\Entity]
+class Profile
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'profile')]
+    #[ORM\JoinColumn(nullable: false)]
+    private User $user;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $bio = null;
+
+    public function setUser(User $user): void
+    {
+        $this->user = $user;
+    }
+}
+```
+
+### Eager vs Lazy Loading
+
+```php
+// Lazy loading (default) - loads relationship on access
+#[ORM\ManyToOne(targetEntity: User::class, fetch: 'LAZY')]
+private User $author;
+
+// Eager loading - loads with parent entity
+#[ORM\ManyToOne(targetEntity: User::class, fetch: 'EAGER')]
+private User $author;
+
+// Extra lazy - count/size without loading collection
+#[ORM\OneToMany(targetEntity: Article::class, mappedBy: 'author', fetch: 'EXTRA_LAZY')]
+private Collection $articles;
+```
+
+### Cascade Operations
+
+```php
+#[ORM\OneToMany(targetEntity: OrderItem::class, mappedBy: 'order', cascade: ['persist', 'remove'])]
+private Collection $items;
+
+// Available cascades:
+// - 'persist' - Persist related entities
+// - 'remove' - Delete related entities
+// - 'merge' - Merge related entities
+// - 'detach' - Detach related entities
+// - 'refresh' - Refresh related entities
+// - 'all' - All of the above
+```
+
+### Join Column Options
+
+```php
+#[ORM\JoinColumn(
+    name: 'user_id',           // Column name in database
+    referencedColumnName: 'id', // Referenced column in target table
+    nullable: false,           // NOT NULL constraint
+    onDelete: 'CASCADE',       // Database-level cascade
+    onUpdate: 'CASCADE',       // Database-level update cascade
+    unique: true               // For OneToOne relationships
+)]
+private User $user;
+```
+
+### Best Practices
+
+1. **Bidirectional by Default** - Easier to navigate from either side
+2. **Owning Side** - Many-to-One is always the owning side
+3. **Orphan Removal** - Use for compositions (e.g., Order → OrderItem)
+4. **Lazy Loading** - Default is fine for most cases
+5. **Collection Type** - Always use `Collection` interface, initialize in constructor
+6. **Add/Remove Methods** - Implement both sides of bidirectional relationships
+7. **Database Cascades** - Use `onDelete: 'CASCADE'` for referential integrity
+8. **Avoid EAGER** - Can cause performance issues with complex graphs
+
+## doctrine-migrations
+
+
+## Doctrine Migrations
+
+Doctrine Migrations provides a structured way to version and deploy database schema changes alongside your application code.
+
+### Installation & Configuration
+
+```bash
+composer require doctrine/migrations
+```
+
+**Configuration (migrations.php or migrations.yaml):**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+return [
+    'table_storage' => [
+        'table_name' => 'doctrine_migration_versions',
+        'version_column_name' => 'version',
+        'version_column_length' => 191,
+        'executed_at_column_name' => 'executed_at',
+        'execution_time_column_name' => 'execution_time',
+    ],
+
+    'migrations_paths' => [
+        'App\Migrations' => 'migrations',
+    ],
+
+    'all_or_nothing' => true,
+    'transactional' => true,
+    'check_database_platform' => true,
+    'organize_migrations' => 'none', // or 'year', 'year_and_month'
+    'connection' => null,
+    'em' => null,
+];
+```
+
+### CLI Commands
+
+```bash
+# View status
+vendor/bin/doctrine-migrations status
+
+# Generate migration from entity changes
+vendor/bin/doctrine-migrations diff
+
+# Create empty migration
+vendor/bin/doctrine-migrations generate
+
+# Execute migrations
+vendor/bin/doctrine-migrations migrate
+
+# Execute specific version
+vendor/bin/doctrine-migrations execute --up 'App\Migrations\Version20240115120000'
+
+# Rollback (down migration)
+vendor/bin/doctrine-migrations execute --down 'App\Migrations\Version20240115120000'
+
+# View migration versions
+vendor/bin/doctrine-migrations list
+
+# Rollback all migrations (first version)
+vendor/bin/doctrine-migrations first
+
+# Check if migrations are synced
+vendor/bin/doctrine-migrations up-to-date
+```
+
+### Migration Class Structure
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Migrations;
+
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+use Doctrine\DBAL\Schema\SchemaException;
+
+final class Version20240115120000 extends AbstractMigration
+{
+    public function getDescription(): string
+    {
+        return 'Add product reviews table with foreign key to products';
+    }
+
+    public function up(Schema $schema): void
+    {
+        $this->addSql('
+            CREATE TABLE product_reviews (
+                id INT AUTO_INCREMENT NOT NULL,
+                product_id INT NOT NULL,
+                author_name VARCHAR(255) NOT NULL,
+                rating SMALLINT NOT NULL,
+                comment TEXT DEFAULT NULL,
+                created_at DATETIME NOT NULL COMMENT \'(DC2Type:datetime_immutable)\',
+                INDEX IDX_REVIEWS_PRODUCT (product_id),
+                PRIMARY KEY(id)
+            ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
+        ');
+
+        $this->addSql('
+            ALTER TABLE product_reviews
+            ADD CONSTRAINT FK_REVIEWS_PRODUCT
+            FOREIGN KEY (product_id)
+            REFERENCES products (id)
+            ON DELETE CASCADE
+        ');
+    }
+
+    public function down(Schema $schema): void
+    {
+        $this->addSql('ALTER TABLE product_reviews DROP FOREIGN KEY FK_REVIEWS_PRODUCT');
+        $this->addSql('DROP TABLE product_reviews');
+    }
+}
+```
+
+### Schema API (Programmatic)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Migrations;
+
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Types\Types;
+use Doctrine\Migrations\AbstractMigration;
+
+final class Version20240115130000 extends AbstractMigration
+{
+    public function up(Schema $schema): void
+    {
+        // Create table using Schema API
+        $table = $schema->createTable('categories');
+        $table->addColumn('id', Types::INTEGER, ['autoincrement' => true]);
+        $table->addColumn('name', Types::STRING, ['length' => 255]);
+        $table->addColumn('slug', Types::STRING, ['length' => 255]);
+        $table->addColumn('description', Types::TEXT, ['notnull' => false]);
+        $table->addColumn('created_at', Types::DATETIME_IMMUTABLE);
+        $table->setPrimaryKey(['id']);
+        $table->addUniqueIndex(['slug'], 'UNIQ_CATEGORY_SLUG');
+    }
+
+    public function down(Schema $schema): void
+    {
+        $schema->dropTable('categories');
+    }
+}
+```
+
+### Data Migrations
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Migrations;
+
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+
+final class Version20240115140000 extends AbstractMigration
+{
+    public function up(Schema $schema): void
+    {
+        // Migrate data from old column to new structure
+        $this->addSql('
+            INSERT INTO categories (name, slug, created_at)
+            SELECT DISTINCT
+                old_category as name,
+                LOWER(REPLACE(old_category, " ", "-")) as slug,
+                NOW() as created_at
+            FROM products
+            WHERE old_category IS NOT NULL
+        ');
+
+        // Update products with new category_id
+        $this->addSql('
+            UPDATE products p
+            JOIN categories c ON p.old_category = c.name
+            SET p.category_id = c.id
+        ');
+
+        // Drop old column
+        $this->addSql('ALTER TABLE products DROP COLUMN old_category');
+    }
+
+    public function down(Schema $schema): void
+    {
+        // Reverse data migration
+        $this->addSql('
+            ALTER TABLE products ADD old_category VARCHAR(255) DEFAULT NULL
+        ');
+
+        $this->addSql('
+            UPDATE products p
+            JOIN categories c ON p.category_id = c.id
+            SET p.old_category = c.name
+        ');
+    }
+}
+```
+
+### Conditional Migrations (Database Platform)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Migrations;
+
+use Doctrine\DBAL\Platforms\MySQLPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+
+final class Version20240115150000 extends AbstractMigration
+{
+    public function up(Schema $schema): void
+    {
+        $platform = $this->connection->getDatabasePlatform();
+
+        if ($platform instanceof MySQLPlatform) {
+            $this->addSql('
+                ALTER TABLE products
+                ADD FULLTEXT INDEX IDX_SEARCH (name, description)
+            ');
+        } elseif ($platform instanceof PostgreSQLPlatform) {
+            $this->addSql('
+                CREATE INDEX IDX_SEARCH ON products
+                USING gin(to_tsvector(\'english\', name || \' \' || COALESCE(description, \'\')))
+            ');
+        }
+    }
+
+    public function down(Schema $schema): void
+    {
+        $this->addSql('DROP INDEX IDX_SEARCH ON products');
+    }
+}
+```
+
+### Migration Dependencies
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Migrations;
+
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+
+final class Version20240115160000 extends AbstractMigration
+{
+    // This migration requires another to be executed first
+    public function getDependencies(): array
+    {
+        return [
+            Version20240115120000::class,
+        ];
+    }
+
+    public function up(Schema $schema): void
+    {
+        // Can rely on tables from Version20240115120000 existing
+    }
+
+    public function down(Schema $schema): void
+    {
+    }
+}
+```
+
+### Skipping If Already Applied
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Migrations;
+
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+use Doctrine\Migrations\Query\Query;
+
+final class Version20240115170000 extends AbstractMigration
+{
+    public function preUp(Schema $schema): void
+    {
+        // Skip if column already exists
+        if ($schema->getTable('products')->hasColumn('new_column')) {
+            $this->skipIf(true, 'Column new_column already exists');
+        }
+    }
+
+    public function up(Schema $schema): void
+    {
+        $this->addSql('ALTER TABLE products ADD new_column VARCHAR(255) DEFAULT NULL');
+    }
+
+    public function down(Schema $schema): void
+    {
+        $this->addSql('ALTER TABLE products DROP COLUMN new_column');
+    }
+}
+```
+
+### Migration with Warnings
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Migrations;
+
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+
+final class Version20240115180000 extends AbstractMigration
+{
+    public function preUp(Schema $schema): void
+    {
+        // Warn about destructive migration
+        $this->warnIf(true, 'This migration will delete orphaned records. Backup recommended.');
+    }
+
+    public function up(Schema $schema): void
+    {
+        // Clean up orphaned data before adding foreign key
+        $this->addSql('
+            DELETE FROM product_reviews
+            WHERE product_id NOT IN (SELECT id FROM products)
+        ');
+
+        $this->addSql('
+            ALTER TABLE product_reviews
+            ADD CONSTRAINT FK_PRODUCT
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        ');
+    }
+
+    public function down(Schema $schema): void
+    {
+        $this->addSql('ALTER TABLE product_reviews DROP FOREIGN KEY FK_PRODUCT');
+    }
+}
+```
+
+### Best Practices
+
+1. **Always write down() method** - Ensure migrations are reversible
+2. **Test migrations** - Run up/down/up cycle to verify
+3. **Keep migrations small** - One logical change per migration
+4. **Use descriptive names** - Version timestamp with clear description
+5. **Don't edit executed migrations** - Create new migration to fix issues
+6. **Production safety** - Add existence checks for idempotency
+7. **Data migrations separately** - Consider separate data migration scripts for large datasets
+8. **Backup before migrate** - Always backup production before running migrations
+9. **Use transactions** - Enable `all_or_nothing` for atomicity
+10. **Don't use entities in migrations** - Schema may not match entity; use raw SQL
+
+### Common Pitfalls
+
+- **Editing already executed migrations** - Never modify migrations after they've been run
+- **Not testing down()** - Broken down() prevents rollback
+- **Long-running migrations** - May lock tables; consider online schema changes
+- **Using entities** - Entity class may not match database state during migration
+- **Missing foreign key checks** - Disable during MySQL migrations to avoid constraint errors
+- **Platform-specific SQL** - May fail on different databases; use platform checks
+
+### Symfony Integration
+
+```yaml
+# config/packages/doctrine_migrations.yaml
+doctrine_migrations:
+    migrations_paths:
+        'App\Migrations': 'migrations'
+    enable_profiler: '%kernel.debug%'
+```
+
+```bash
+# Symfony CLI
+php bin/console doctrine:migrations:status
+php bin/console doctrine:migrations:diff
+php bin/console doctrine:migrations:migrate
+php bin/console doctrine:migrations:rollback
+```

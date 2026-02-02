@@ -1,0 +1,11 @@
+{
+	"name": "doctrine/claude-code",
+	"description": "Claude Code plugin for Doctrine ORM",
+	"license": "MIT",
+	"require-dev": {
+		"nette/tester": "^2.5"
+	},
+	"scripts": {
+		"tester": "vendor/bin/tester tests -s"
+	}
+}
