@@ -8,5 +8,7 @@ composer.phar
 # Claude Code local settings
 .claude/
 
-# Test fixtures are generated during test runs
-tests/fixtures/
+# Test fixtures are generated during test runs (ignore contents, keep directory)
+tests/fixtures/*
+!tests/fixtures/.gitkeep*
+!tests/fixtures/.gitkeep
