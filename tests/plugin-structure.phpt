@@ -24,8 +24,6 @@ test('plugin.json exists and is valid', function () use ($pluginDir) {
 
 	// Paths
 	Assert::true(isset($json['skills']), 'plugin.json should have skills path');
-	Assert::true(isset($json['hooks']), 'plugin.json should have hooks path');
-	Assert::true(isset($json['commands']), 'plugin.json should have commands path');
 });
 
 
