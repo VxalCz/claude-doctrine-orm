@@ -1,4 +1,5 @@
 {
+	"description": "Validate Doctrine entity files after Edit/Write",
 	"hooks": {
 		"PostToolUse": [
 			{
