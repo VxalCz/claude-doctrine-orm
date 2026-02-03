@@ -5,5 +5,7 @@
 	"author": {"name": "Developer"},
 	"license": "MIT",
 	"keywords": ["doctrine", "orm", "dbal", "database", "entity", "dql", "querybuilder", "migrations"],
-	"hooks": "./hooks"
+	"skills": "./skills/",
+	"hooks": "./hooks/",
+	"commands": "./commands/"
 }
