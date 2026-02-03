@@ -6,7 +6,7 @@ use Tester\Assert;
 
 require __DIR__ . '/bootstrap.php';
 
-$scriptPath = __DIR__ . '/../plugins/doctrine/hooks/validate-entity.php';
+$scriptPath = __DIR__ . '/../hooks/validate-entity.php';
 $fixturesDir = __DIR__ . '/fixtures';
 
 
