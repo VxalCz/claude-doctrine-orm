@@ -42,7 +42,7 @@ jobs:
       run: composer install --prefer-dist --no-progress
 
     - name: Run syntax check on hook
-      run: php -l plugins/doctrine/hooks/validate-entity.php
+      run: php -l hooks/validate-entity.php
 
     - name: Run tests
       run: composer run tester

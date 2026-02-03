@@ -6,7 +6,7 @@ use Tester\Assert;
 
 require __DIR__ . '/bootstrap.php';
 
-$pluginDir = __DIR__ . '/../plugins/doctrine';
+$pluginDir = __DIR__ . '/..';
 
 
 test('plugin.json exists and is valid', function () use ($pluginDir) {
